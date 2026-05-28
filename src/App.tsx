@@ -1,49 +1,36 @@
-import { useState } from "react";
-import {
-  AnimatePresence,
-  motion,
-  useAnimation,
-  type LegacyAnimationControls,
-} from "framer-motion";
+import { useRef, useState } from "react";
+import type { CarouselApi } from "./components/ui/carousel";
+import { CustomCarousel } from "./components/custom-carousel";
 
 function App() {
-  const [selected, setSelected] = useState(false);
-
+  const [api, setApi] = useState<CarouselApi>();
+  const handleCarouselNext = () => {
+    if (api) {
+      api.scrollNext();
+      api.slidesInView();
+    }
+  };
   return (
-    <div className="h-screen w-screen flex items-center justify-center bg-gray-100">
-      <AnimatePresence>
-        {!selected && (
-          <motion.div
-            layoutId="card"
-            className="w-40 h-40 bg-blue-400 rounded-lg shadow-lg cursor-pointer"
-            onClick={() => setSelected(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <span className="text-white text-xl">Click me</span>
-          </motion.div>
-        )}
-        {selected && (
-          <motion.div
-            layoutId="card"
-            className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50"
-            onClick={() => setSelected(false)}
-          >
-            <motion.div
-              className="w-96 h-96 bg-blue-400 rounded-lg shadow-2xl flex items-center justify-center"
-              style={{ cursor: "pointer" }}
-            >
-              <span className="text-white text-3xl">
-                I'm expanded! Click to close.
-              </span>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+    <div className="w-full h-screen flex flex-col items-center justify-center bg-amber-300">
+      <button
+        onClick={handleCarouselNext}
+        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded fixed top-4 left-4 z-10"
+      >
+        Next
+      </button>
+      <button
+        onClick={() => {
+          if (api) {
+            api.scrollTo(0);
+          }
+        }}
+        className="mb-4 px-4 py-2 bg-blue-500 text-white rounded fixed top-20 left-4 z-10"
+      >
+        Reset
+      </button>
+      <CustomCarousel api={api} setApi={setApi} />
     </div>
   );
 }
+
 export default App;
