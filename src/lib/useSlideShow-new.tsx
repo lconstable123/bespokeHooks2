@@ -18,7 +18,7 @@ export function useSlideShow({
   //-----------------------------------------------------------------------
 
   async function loadImages() {
-    toast.loading("Loading images...");
+    const loadingToast = toast.loading("Loading images...");
     setLoadingImages(true);
 
     try {
@@ -41,6 +41,7 @@ export function useSlideShow({
         toast.error(String(error));
       }
     } finally {
+      toast.dismiss(loadingToast);
       toast.success("images loaded");
       setLoadingImages(false);
     }
@@ -51,6 +52,7 @@ export function useSlideShow({
   }, [urls]);
 
   useEffect(() => {
+    if (loadingImages || images.length === 0) return;
     let interval: ReturnType<typeof setInterval>;
     if (!loadingImages) {
       interval = setInterval(() => {
@@ -58,11 +60,6 @@ export function useSlideShow({
           if (prev === null) return 0;
           return (prev + 1) % images.length;
         });
-        toast.success(
-          currentImg !== null
-            ? `showing image ${currentImg + 1}`
-            : "starting slideshow",
-        );
       }, delay);
     }
 

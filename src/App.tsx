@@ -1,7 +1,8 @@
+import { GsapTests } from "./components/gsap";
 import { SlideShowTest } from "./components/slideShow-test";
 
 function App() {
-  return <SlideShowTest />;
+  return <GsapTests />;
 }
 
 export default App;

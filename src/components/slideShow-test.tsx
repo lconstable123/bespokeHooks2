@@ -14,6 +14,7 @@ export const SlideShowTest = () => {
           ) : (
             images.map((src, i) => (
               <motion.img
+                draggable={false}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.5 }}
@@ -35,10 +36,11 @@ export const SlideShowTest = () => {
             </div>
           ) : (
             <motion.img
+              draggable={false}
               key={selectedImage}
               src={images[selectedImage ?? 0]}
               alt="Selected Slide"
-              className="w-50 h-50 object-cover absolute inset-0"
+              className="w-50 h-50 object-cover  absolute inset-0"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0, transition: { duration: 2 } }}
