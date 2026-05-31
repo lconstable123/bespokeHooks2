@@ -8,7 +8,8 @@ type tGAProps = {
   intensity?: number;
   duration?: number;
   falloff?: number;
-  ringWidth: number;
+  ringWidth?: number;
+  displaceIntensity?: number;
   initialOpacity?: number;
 };
 type tGAOutputs = {
@@ -27,16 +28,19 @@ type AnimationWave = {
   dist: Float32Array;
   dirX: Float32Array;
   dirY: Float32Array;
+  inverseSpreadDenomonatorSq: number;
+  inverseRingSpreadDenomonatorSq: number;
   animationReference: any;
 };
 
 export const useGridAnimation = ({
   gridSize = 20,
-  initialOpacity = 0.7,
-  ringWidth = 2,
-  intensity = 1,
-  duration = 2,
+  initialOpacity = 0.3,
+  ringWidth = 1,
+  intensity = 0.6,
+  duration = 1,
   falloff = 3,
+  displaceIntensity = 1,
 }: tGAProps): tGAOutputs => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const boxInfo = useRef<BoxInfo[]>([]);
@@ -69,23 +73,7 @@ export const useGridAnimation = ({
     { scope: containerRef },
   );
 
-  const clickDebug = (i: number, j: number) => {
-    toast.success(`row: ${i}, col: ${j}`);
-    boxInfo.current.forEach(({ row, col, set }) => {
-      if (row === i && col === j) {
-        set(0, 0, 1);
-      } else {
-        set(0, 0, initialOpacity);
-      }
-    });
-  };
-
   const handlePress = (i: number, j: number) => {
-    // clickDebug( i, j);
-    // query row and col
-    // gnerate a box object that containers per-frame informations
-    // radius(aniamted), distance from click,
-    //and the animatin handle
     const boxAmt = boxInfo.current.length;
     const dist = new Float32Array(boxAmt);
     const dirY = new Float32Array(boxAmt);
@@ -100,24 +88,28 @@ export const useGridAnimation = ({
       dist[boxIndex] = distance;
 
       //normalised direciton
-      dirY[boxIndex] = rawX === 0 ? 0 : rawX / distance;
-      dirX[boxIndex] = rawY === 0 ? 0 : rawY / distance;
+      dirY[boxIndex] = distance === 0 ? 0 : rawX / distance;
+      dirX[boxIndex] = distance === 0 ? 0 : rawY / distance;
     }
 
     const maxRadius = Math.hypot(
       Math.max(i, gridSize - 1 - i),
       Math.max(j, gridSize - 1 - j),
     );
-
+    const spreadRadius = maxRadius + ringWidth;
+    const inverseSpreadDenomonatorSq = 1 / (2 * spreadRadius * spreadRadius);
+    const inverseRingSpreadDenomonatorSq = 1 / (2 * ringWidth * ringWidth);
     const animatedRadius = { radius: 0 };
 
     const animationReference = gsap.to(animatedRadius, {
       radius: maxRadius + ringWidth,
       duration: duration,
-      ease: "none",
-      onStart: render,
-      //   onUpdate: render,
-      onComplete: () => {},
+      //   ease: "none",
+      //   onStart: render,
+      onUpdate: render,
+      onComplete: () => {
+        // remove the wave from the array
+      },
     });
 
     const waveObject: AnimationWave = {
@@ -126,35 +118,62 @@ export const useGridAnimation = ({
       dirX,
       dirY,
       animationReference,
+      inverseSpreadDenomonatorSq,
+      inverseRingSpreadDenomonatorSq,
     };
 
     animatedWaves.current.push(waveObject);
+    render();
   };
 
   const render = () => {
-    //declare an accmulated energy var
-
     const boxes = boxInfo.current;
     const boxAmt = boxes.length;
     const waves = animatedWaves.current;
     const wavesAmt = waves.length;
 
-    let accumulatedEnergy = 0;
-
     for (let boxIndex = 0; boxIndex < boxAmt; boxIndex++) {
+      let accumulatedEnergy = 0;
+      let displaceX = 0;
+      let displaceY = 0;
       const { set } = boxes[boxIndex];
       for (let waveIndex = 0; waveIndex < wavesAmt; waveIndex++) {
-        const { animatedRadius, dist, dirX, dirY } = waves[waveIndex];
-        //calulate roation from dirx and y atan2
-        // const rot =
-        //   Math.atan2(dirY[boxIndex], dirX[boxIndex]) * (180 / Math.PI);
-        // set(0, 0, dist[boxIndex] * 0.1, rot);
-        // work out the blurred energy of each square, by chekcing against the distance from the click
+        const {
+          animatedRadius,
+          dist,
+          dirX,
+          dirY,
+          inverseSpreadDenomonatorSq,
+          inverseRingSpreadDenomonatorSq,
+        } = waves[waveIndex];
+        const distance = dist[boxIndex];
+        const { radius } = animatedRadius;
+        //====================================================================
+        // gaussian distribution formula =
+        // A * Math.exp(-(radius-distance)^2 / 2 * spread ^2)
+        //=====================================================================
+
+        const distanceDeltaSq = (distance - radius) * (distance - radius);
+        const energy = Math.exp(
+          -distanceDeltaSq * inverseRingSpreadDenomonatorSq,
+        );
+        const attenuatedEnergy =
+          energy *
+          Math.exp(-(distance * distance) * inverseSpreadDenomonatorSq);
+
+        accumulatedEnergy += attenuatedEnergy;
+
         // add a falloff factor
         // add to the accululated energy
         // use the boxinfo setters
         //ok!!
+        displaceX +=
+          dirX[boxIndex] * accumulatedEnergy * displaceIntensity * 20;
+        displaceY +=
+          dirY[boxIndex] * accumulatedEnergy * displaceIntensity * 20;
       }
+      const clampedEnergy = Math.min(1, accumulatedEnergy);
+      set(displaceX, displaceY, initialOpacity + clampedEnergy * intensity);
     }
   };
 
